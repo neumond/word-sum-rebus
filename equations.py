@@ -70,6 +70,51 @@ def patternize(word, skip=' '):
     return ''.join(result)
 
 
+def patternize_tails(a, b, s):
+    assert len(a) == len(b)
+    assert len(a) <= len(s) <= len(a) + 1
+    # print('patternize_tails', a, b, s)
+
+    def iter_symbols():
+        for aa, bb, ss in zip(a[::-1], b[::-1], s[-len(a):][::-1]):
+            yield aa
+            yield bb
+            yield ss
+        if len(s) > len(a):
+            yield s[0]
+
+    used = {}
+    result = []
+    alloc = iter('ABCDEFGHIJ')
+    for m in iter_symbols():
+        if m not in used:
+            used[m] = next(alloc)
+        # print(m, used[m], ord(m))
+        result.append(used[m])
+    return ''.join(result)
+
+
+def patternize_tails_iterative(a, b, s):
+    assert len(a) == len(b)
+    assert len(a) <= len(s) <= len(a) + 1
+
+    def iter_symbols():
+        for aa, bb, ss in zip(a[::-1], b[::-1], s[-len(a):][::-1]):
+            yield (aa, bb, ss)
+        if len(s) > len(a):
+            yield (s[0], )
+
+    used = {}
+    alloc = iter('ABCDEFGHIJ')
+    for triplet in iter_symbols():
+        tr = []
+        for m in triplet:
+            if m not in used:
+                used[m] = next(alloc)
+            tr.append(used[m])
+        yield ''.join(tr)
+
+
 def letterset(word):
     return ''.join(sorted(set(word)))
 

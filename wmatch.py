@@ -1,5 +1,4 @@
-from itertools import permutations
-# from equations import attempt_to_match
+from equations import patternize_tails, patternize_tails_iterative
 
 
 MULTIPLIERS = [10 ** i for i in range(20)]
@@ -234,6 +233,10 @@ def collect_result(char_map, a, b, s):
     return at, bt
 
 
+def dead_pattern(a, b, s, max_depth):
+    a[-max_depth:]
+
+
 def attempt2(a, b, s):
     cs = ColumnSet(a, b, s)
     char_map = CharmapStack(a + b + s)
@@ -241,9 +244,11 @@ def attempt2(a, b, s):
     if len(s) > len(a):
         char_map.set_item(s[0], 1)
 
-    c = 0
     chars2 = list(uniq_char_sequence(char_sequence2(a, b)))
+    # possible improvement:
+    # remove/restore items in arguments of numpool2
     ng = numpool2(chars2, set(range(10)))
+    max_depth = 0
     decision = None
     while True:
         try:
@@ -252,6 +257,7 @@ def attempt2(a, b, s):
             break
         decision = True
         ch = chars2[chpos]
+        max_depth = max(max_depth, chpos)
         if op:
             char_map.set_checkpoint()
             try:
@@ -267,12 +273,92 @@ def attempt2(a, b, s):
             cs.set_symbol(ch, None)
             char_map.revert_to_checkpoint()
         # print(cs.debug())
-        c += 1
 
         if char_map.left <= 0:
             assert char_map.left == 0
-            return collect_result(char_map.char_map, a, b, s)
+            try:
+                return True, collect_result(char_map.char_map, a, b, s)
+            except AssertionError:
+                pass
+
+    if max_depth >= len(a) - 1:
+        return False, None
+    return False, patternize_tails(
+        a[-max_depth:], b[-max_depth:], s[-max_depth:])
+
+
+class DeadPrefixTree:
+    __slots__ = ('children', )
+
+    def __init__(self):
+        self.children = {}
+
+    def is_dead_end(self):
+        return self.children is True
+
+    def is_in_tree(self, a, b, s):
+        node = self
+        for triplet in patternize_tails_iterative(a, b, s):
+            if node.is_dead_end():
+                return True
+            if triplet not in node.children:
+                return False
+            node = node.children[triplet]
+        assert False
+
+    def add_to_tree(self, tail_pattern):
+        assert len(tail_pattern) % 3 == 0
+        node = self
+        for base in range(0, len(tail_pattern), 3):
+            triplet = tail_pattern[base:base + 3]
+            if triplet not in node.children:
+                node.children[triplet] = DeadPrefixTree()
+            node = node.children[triplet]
+        node.children = True
 
 
 # print(attempt2('аароновец', 'нашивание', 'нагнивание'))
-print(attempt2('деталь', 'деталь', 'изделие'))
+# print(attempt2('деталь', 'деталь', 'изделие'))
+# print(attempt2('удар', 'удар', 'драка'))
+# print(attempt2('трюк', 'трюк', 'цирк'))
+# print(attempt2('овец', 'ание', 'ание'))
+
+
+# print(list(patternize_tails_iterative('аароновец', 'нашивание', 'нагнивание')))
+
+
+# tree = DeadPrefixTree()
+# print(tree.is_in_tree('деталь', 'деталь', 'изделие'))
+# tree.add_to_tree(patternize_tails('аль', 'аль', 'лие'))
+# print(tree.is_in_tree('деталь', 'деталь', 'изделие'))
+
+
+def attempt3(a, b, s, tree):
+    if tree.is_in_tree(a, b, s):
+        return False, ()
+    success, data = attempt2(a, b, s)
+    if success:
+        return True, data
+    elif data is not None:
+        tree.add_to_tree(data)
+    return False, ()
+
+
+def run_global_iteration():
+    from tqdm import tqdm
+
+    from equations import iterate_pairs, iterate_with_sums, load_word_database
+
+    words = load_word_database()
+    tree = DeadPrefixTree()
+    for a, b, s in tqdm(iterate_with_sums(
+        words,
+        iterate_pairs(words),
+    )):
+        success, data = attempt3(a, b, s, tree)
+        # print(a, b, s)
+        if success:
+            print(a, b, s, data)
+
+
+run_global_iteration()
