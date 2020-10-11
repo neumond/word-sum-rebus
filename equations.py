@@ -192,46 +192,6 @@ def attempt_to_match(a, b, s):
     return False, 'no matches'
 
 
-def solve_long1(words):
-    # words = ['деталь', 'изделие']
-    print('Total words:', len(words))
-
-    mask_index_by_len = {
-        wlen: LetterMaskIndex(wlist)
-        for wlen, wlist in split_by_length(words).items()
-    }
-
-    c = 0
-    pair_patterns = set()
-    for a in tqdm(words):
-        for b in mask_index_by_len[len(a)].search_submatches(a):
-            if a > b:
-                continue
-            # 85M pairs here
-            c += 1
-            pair_patterns.add(patternize(f'{a}+{b}', '+'))
-
-            # for s in mask_index_by_len[len(a)].search_submatches(a + b):
-            #     # print('Attempt to match', a, b, s, end=': ')
-            #     # success, reason = attempt_to_match(a, b, s)
-            #     # print(success, reason)
-            #     # assert len(letterset(a + b + s)) <= 10
-            #     c += 1
-            #
-            # if (len(a) + 1) in mask_index_by_len:
-            #     for s in mask_index_by_len[len(a) + 1].search_submatches(a + b):
-            #         # print('Attempt to match', a, b, s, end=': ')
-            #         # success, reason = attempt_to_match(a, b, s)
-            #         # print(success, reason)
-            #         # assert len(letterset(a + b + s)) <= 10
-            #         c += 1
-
-        # print(f'Word {i + 1}, possibles {c}, bc {bc}')
-        # break
-    print('Total pairs:', c)
-    print('Unique pair patterns:', len(pair_patterns))
-
-
 def create_word_database(words):
     # create_word_database(build())
     with open('words.txt', 'w') as f:
@@ -276,7 +236,7 @@ def create_pair_database(words):
     print('Total pairs:', c)
 
 
-def iterate_pairs(words):
+def iterate_pairs2(words):
     from itertools import chain, repeat
 
     def file_chunks(f):
@@ -314,6 +274,23 @@ def iterate_pairs(words):
                 yield a, words[i]
 
     # 85297031 pairs
+
+
+def iterate_pairs(words):
+    mask_index_by_len = {
+        wlen: LetterMaskIndex(wlist)
+        for wlen, wlist in split_by_length(words).items()
+    }
+
+    for a in tqdm(words):
+        # if a <= 'азартность':
+        #     continue
+        if len(a) < 10:
+            continue
+        for b in mask_index_by_len[len(a)].search_submatches(a):
+            if a > b:
+                continue
+            yield a, b
 
 
 def iterate_with_sums(words, pair_iterator):
