@@ -1,6 +1,5 @@
 from equations import patternize_tails, patternize_tails_iterative
 
-
 MULTIPLIERS = [10 ** i for i in range(20)]
 
 
@@ -25,47 +24,6 @@ def uniq_char_sequence(seq, prefill=()):
         if ch not in k:
             yield ch
             k.add(ch)
-
-
-def numpool(chars):
-    chars = list(chars)
-    print(chars)
-    freenums = set(range(10))
-    stack = []
-    skip_add = False
-    while True:
-        if not skip_add and len(stack) < len(chars):
-            # add new
-            n = 0
-            while n not in freenums:
-                n += 1
-            assert n < 10
-            stack.append(n)
-            yield True, n, chars[len(stack) - 1]
-            freenums.remove(n)
-            continue
-
-        skip_add = False
-
-        # try to switch current
-        for n in range(stack[-1] + 1, 10):
-            if n in freenums:
-
-                # switch
-                freenums.add(stack[-1])
-                yield False, stack[-1], chars[len(stack) - 1]
-                stack[-1] = n
-                yield True, n, chars[len(stack) - 1]
-                freenums.remove(n)
-
-                break
-        else:
-            # exhausted, pop from stack
-            yield False, stack[-1], chars[len(stack) - 1]
-            freenums.add(stack.pop(-1))
-            if len(stack) == 0:
-                return
-            skip_add = True
 
 
 def numpool2(chars, freenums, pos=0):
@@ -231,10 +189,6 @@ def collect_result(char_map, a, b, s):
     st = int(''.join(str(char_map[ch]) for ch in s))
     assert at + bt == st
     return at, bt
-
-
-def dead_pattern(a, b, s, max_depth):
-    a[-max_depth:]
 
 
 def attempt2(a, b, s):
