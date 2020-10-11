@@ -69,6 +69,20 @@ def numpool(chars):
             skip_add = True
 
 
+def numpool2(chars, freenums, pos=0):
+    for i in range(10):
+        if i not in freenums:
+            continue
+        accept = yield True, i, pos
+        if not accept:
+            continue
+        freenums.remove(i)
+        if pos + 1 < len(chars):
+            yield from numpool2(chars, freenums, pos + 1)
+        yield False, i, pos
+        freenums.add(i)
+
+
 class Column:
     def __init__(self, a, b, s):
         self.a, self.b, self.s = a, b, s
@@ -87,8 +101,8 @@ class Column:
 
     def is_filled(self):
         return (
-            self.a is not None
-            and self.b is not None
+            self.an is not None
+            and self.bn is not None
             and self.carry is not None
         )
 
@@ -154,29 +168,110 @@ class ColumnSet:
             col.set_symbol(sym, n)
             if min_col is None:
                 min_col = col
-        col = min_col
-        while col is not None:
-            if col.is_filled():
-                yield col.s, col._get_sum_range()[0]
-            col = col.next_col
+        return min_col
+
+    def debug(self):
+        def pn(n):
+            if n is None:
+                return '.'
+            return str(n)
+
+        a = ''.join(pn(col.an) for col in self.columns)
+        b = ''.join(pn(col.bn) for col in self.columns)
+        return f'{a} + {b}'
+
+
+def collect_update_from_column_chain(col):
+    while col is not None:
+        if col.is_filled():
+            yield col.s, col._get_sum_range()[0] % 10
+        col = col.next_col
+
+
+class StackConflictError(Exception):
+    pass
+
+
+class CharmapStack:
+    def __init__(self, all_symbols):
+        self.char_map = {}
+        self.reverse_map = {}
+        self.left = len(set(all_symbols))
+        self.history = []
+
+    def set_checkpoint(self):
+        # print('checkpoint', len(self.history))
+        self.history.append((
+            self.char_map.copy(),
+            self.reverse_map.copy(),
+            self.left,
+        ))
+
+    def revert_to_checkpoint(self):
+        self.char_map, self.reverse_map, self.left = self.history.pop(-1)
+        # print('revert', len(self.history))
+
+    def set_item(self, sym, n):
+        assert n is not None
+        if sym not in self.char_map:
+            if n in self.reverse_map:
+                # print('char conflict (reverse)', sym, self.reverse_map[n], n)
+                raise StackConflictError
+            # print('set symbol', sym, n)
+            self.char_map[sym] = n
+            self.reverse_map[n] = sym
+            self.left -= 1
+        elif self.char_map[sym] != n:
+            # print('char conflict', sym, self.char_map[sym], n)
+            raise StackConflictError
+
+
+def collect_result(char_map, a, b, s):
+    at = int(''.join(str(char_map[ch]) for ch in a))
+    bt = int(''.join(str(char_map[ch]) for ch in b))
+    st = int(''.join(str(char_map[ch]) for ch in s))
+    assert at + bt == st
+    return at, bt
 
 
 def attempt2(a, b, s):
     cs = ColumnSet(a, b, s)
+    char_map = CharmapStack(a + b + s)
 
-    char_map = {}
+    if len(s) > len(a):
+        char_map.set_item(s[0], 1)
+
     c = 0
-    for op, n, ch in numpool(uniq_char_sequence(char_sequence2(a, b))):
+    chars2 = list(uniq_char_sequence(char_sequence2(a, b)))
+    ng = numpool2(chars2, set(range(10)))
+    decision = None
+    while True:
+        try:
+            op, n, chpos = ng.send(decision)
+        except StopIteration:
+            break
+        decision = True
+        ch = chars2[chpos]
         if op:
-            assert ch not in char_map
-            char_map[ch] = n
-            cs.set_symbol(ch, n)
+            char_map.set_checkpoint()
+            try:
+                char_map.set_item(ch, n)
+                col = cs.set_symbol(ch, n)
+                for setsym, setn in collect_update_from_column_chain(col):
+                    char_map.set_item(setsym, setn)
+            except StackConflictError:
+                cs.set_symbol(ch, None)
+                char_map.revert_to_checkpoint()
+                decision = False
         else:
-            assert char_map[ch] == n
-            del char_map[ch]
             cs.set_symbol(ch, None)
+            char_map.revert_to_checkpoint()
+        # print(cs.debug())
         c += 1
-    return c
+
+        if char_map.left <= 0:
+            assert char_map.left == 0
+            return collect_result(char_map.char_map, a, b, s)
 
 
 # print(attempt2('аароновец', 'нашивание', 'нагнивание'))
