@@ -200,8 +200,10 @@ def create_word_database(words):
 
 
 def load_word_database():
+    import gzip
+
     result = []
-    with open('words.txt', 'r') as f:
+    with gzip.open('words.txt.gz', 'rt', encoding='utf-8') as f:
         for line in f:
             result.append(line.strip())
     return result

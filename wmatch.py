@@ -345,4 +345,9 @@ def run_global_iteration():
     tqdm.write(str(tstat))
 
 
-run_global_iteration()
+# run_global_iteration()
+
+from equations import iterate_pairs, iterate_with_sums, load_word_database
+words = load_word_database()
+print(len(words))
+print(words[:50])
