@@ -199,16 +199,23 @@ class CharmapStack:
             raise StackConflictError
 
 
-def collect_result(char_map, a, b, s):
-    at = int(''.join(str(char_map[ch]) for ch in a))
-    bt = int(''.join(str(char_map[ch]) for ch in b))
-    st = int(''.join(str(char_map[ch]) for ch in s))
-    assert at + bt == st
+def collect_result(char_map, a, b, s, imaginary_one, allow_leading_zero):
+    at = ''.join(str(char_map[ch]) for ch in a)
+    bt = ''.join(str(char_map[ch]) for ch in b)
+    if not allow_leading_zero:
+        assert not at.startswith('0')
+        assert not bt.startswith('0')
+    at, bt = int(at), int(bt)
+    st = ''.join(str(char_map[ch]) for ch in s)
+    if not imaginary_one:
+        assert at + bt == int(st)
+    else:
+        assert (at + bt == int(st)) or (at + bt == int('1' + st))
     return at, bt
 
 
-def match(a, b, s):
-    print(a, b, s)
+def match(a, b, s, imaginary_one=False, allow_leading_zero=False):
+    # print(a, b, s)
     cs = ColumnSet(a, b, s)
     char_map = CharmapStack(a + b + s)
 
@@ -219,7 +226,6 @@ def match(a, b, s):
     # possible improvement:
     # remove/restore items in arguments of numpool2
     ng = numpool2(chars2, set(range(10)))
-    max_depth = 0
     decision = None
     while True:
         try:
@@ -228,7 +234,6 @@ def match(a, b, s):
             break
         decision = True
         ch = chars2[chpos]
-        max_depth = max(max_depth, chpos)
         if op:
             char_map.set_checkpoint()
             try:
@@ -248,11 +253,15 @@ def match(a, b, s):
         if char_map.left <= 0:
             assert char_map.left == 0
             try:
-                return True, collect_result(char_map.char_map, a, b, s)
+                res = collect_result(
+                    char_map.char_map, a, b, s,
+                    imaginary_one, allow_leading_zero)
+                # print(res)
+                return res
             except AssertionError:
                 pass
 
-    return False, max_depth
+    return None
 
 
 # print(match('aa', 'bb', 'cc'))
@@ -267,15 +276,19 @@ KNOWN_MATCHES = [
     ('удар', 'удар', 'драка'),
     ('трюк', 'трюк', 'цирк'),
     ('абитуриент', 'антиракета', 'бригантина'),
+    ('аароновец', 'нашивание', 'нагнивание'),
 ]
 
 
 def test_match():
     for a, b, s in KNOWN_MATCHES:
-        print(match(a, b, s))
-        while len(a) > 1:
+        print(a, b, s, match(a, b, s))
+        if len(s) > len(a):
+            s = s[1:]
+        while len(a) > 0:
+            print(a, b, s, match(a, b, s, True, True))
             a, b, s = a[1:], b[1:], s[1:]
-            print(match(a, b, s))
 
 
 test_match()
+# print(match('удар', 'удар', 'рака', True, allow_leading_zero=True))
