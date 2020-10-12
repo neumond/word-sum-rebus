@@ -199,23 +199,7 @@ class CharmapStack:
             raise StackConflictError
 
 
-def collect_result(char_map, a, b, s, imaginary_one, allow_leading_zero):
-    at = ''.join(str(char_map[ch]) for ch in a)
-    bt = ''.join(str(char_map[ch]) for ch in b)
-    if not allow_leading_zero:
-        assert not at.startswith('0')
-        assert not bt.startswith('0')
-    at, bt = int(at), int(bt)
-    st = ''.join(str(char_map[ch]) for ch in s)
-    if not imaginary_one:
-        assert at + bt == int(st)
-    else:
-        assert (at + bt == int(st)) or (at + bt == int('1' + st))
-    return at, bt
-
-
-def match(a, b, s, imaginary_one=False, allow_leading_zero=False):
-    # print(a, b, s)
+def find_possible_charmaps(a, b, s):
     cs = ColumnSet(a, b, s)
     char_map = CharmapStack(a + b + s)
 
@@ -248,47 +232,46 @@ def match(a, b, s, imaginary_one=False, allow_leading_zero=False):
         else:
             cs.set_symbol(ch, None)
             char_map.revert_to_checkpoint()
-        # print(cs.debug())
 
         if char_map.left <= 0:
             assert char_map.left == 0
-            try:
-                res = collect_result(
-                    char_map.char_map, a, b, s,
-                    imaginary_one, allow_leading_zero)
-                # print(res)
-                return res
-            except AssertionError:
-                pass
-
-    return None
+            yield char_map.char_map.copy()
 
 
-# print(match('aa', 'bb', 'cc'))
-# print(match('аароновец', 'нашивание', 'нагнивание'))
-# print(match('деталь', 'деталь', 'изделие'))
-# print(match('удар', 'удар', 'драка'))
-# print(match('трюк', 'трюк', 'цирк'))
+def apply_charmap(char_map, word):
+    return ''.join(str(char_map[ch]) for ch in word)
 
 
-KNOWN_MATCHES = [
-    ('деталь', 'деталь', 'изделие'),
-    ('удар', 'удар', 'драка'),
-    ('трюк', 'трюк', 'цирк'),
-    ('абитуриент', 'антиракета', 'бригантина'),
-    ('аароновец', 'нашивание', 'нагнивание'),
-]
+def prefix_match(a, b, s):
+    # there may be many matches, we need to prove at least one exists
+    # leading zeros allowed
+    # with imaginary one
+    for char_map in find_possible_charmaps(a, b, s):
+        at, bt, st = map(lambda w: apply_charmap(char_map, w), [a, b, s])
+        ai, bi = map(int, [at, bt])
+        if (ai + bi != int(st)) and (ai + bi != int('1' + st)):
+            continue
+        return True
+    return False
 
 
-def test_match():
-    for a, b, s in KNOWN_MATCHES:
-        print(a, b, s, match(a, b, s))
-        if len(s) > len(a):
-            s = s[1:]
-        while len(a) > 0:
-            print(a, b, s, match(a, b, s, True, True))
-            a, b, s = a[1:], b[1:], s[1:]
+def strict_match(a, b, s):
+    # ensure there's only one match
+    # no leading zeros
+    # no imaginary one
+    result = None
+    for char_map in find_possible_charmaps(a, b, s):
+        at, bt, st = map(lambda w: apply_charmap(char_map, w), [a, b, s])
+        if at.startswith('0') or bt.startswith('0'):
+            continue
+        ai, bi, si = map(int, [at, bt, st])
+        if ai + bi != si:
+            continue
+        if result is not None:
+            return None  # multiple results exist
+        result = (ai, bi)
+    return result
 
 
-# test_match()
-# print(match('удар', 'удар', 'рака', True, allow_leading_zero=True))
+# print(strict_match('азас', 'база', 'тама'))
+# print(prefix_match('азас', 'база', 'тама'))

@@ -1,7 +1,7 @@
 from itertools import islice
 from time import monotonic
 
-from matching import match
+from matching import prefix_match, strict_match
 from patterns import patternize_tails_iterative
 
 
@@ -10,6 +10,7 @@ class DeadPrefixTree:
 
     def __init__(self):
         self.children = {}  # nested dicts
+        self.tree_size = 0
         self.reset_stat()
 
     def check_and_store(self, a, b, s):
@@ -25,6 +26,7 @@ class DeadPrefixTree:
             if triplet not in current:
                 m = self.match_fn(a[-tail_len:], b[-tail_len:], s[-tail_len:])
                 current[triplet] = {} if m else False
+                self.tree_size += 1
             current = current[triplet]
             if current is False:
                 self.result_dead_count += 1
@@ -34,23 +36,24 @@ class DeadPrefixTree:
     def match_fn(self, a, b, s):
         # print('match', a, b, s)
         self.match_call_count += 1
-        return match(
-            a, b, s, imaginary_one=True, allow_leading_zero=True,
-        ) is not None
+        return prefix_match(a, b, s)
 
     def reset_stat(self):
         self.call_count = 0
         self.result_dead_count = 0
         self.match_call_count = 0
+        self.last_tree_size = self.tree_size
         self.last_time = monotonic()
 
     def report_str(self):
         dt = monotonic() - self.last_time
+        dsize = self.tree_size - self.last_tree_size
         return (
-            f'calls:{self.call_count}'
-            f' dead:{self.result_dead_count}'
-            f' matchcalls:{self.match_call_count}'
-            f' time:{dt:.1f}s'
+            f'calls:+{self.call_count}'
+            f' dead:+{self.result_dead_count}'
+            f' matchcalls:+{self.match_call_count}'
+            f' treesize:{self.tree_size}(+{dsize})'
+            f' time:+{dt:.1f}s'
         )
 
 
@@ -63,12 +66,6 @@ class DeadPrefixTree:
 # print(tree.report_str())
 
 
-def attempt3(a, b, s, tree):
-    if not tree.check_and_store(a, b, s):
-        return None
-    return match(a, b, s, imaginary_one=False, allow_leading_zero=False)
-
-
 def run_global_iteration():
     from time import time
 
@@ -78,6 +75,7 @@ def run_global_iteration():
 
     words = Words.load_full()
     words.a_filter = lambda w: len(w) >= 10
+    # words.a_filter = lambda w: w == 'азас'
     # words = Words(['деталь', 'изделие', 'удар', 'драка'])
 
     tree = DeadPrefixTree()
@@ -90,13 +88,16 @@ def run_global_iteration():
             f.flush()
 
         for a, b, s in words.iterate_with_sums():
-            if a != last_word and last_word is not None:
-                write(f'{last_word} {tree.report_str()}')
-                tree.reset_stat()
+            if a != last_word:
+                if last_word is not None:
+                    write(f'{last_word} {tree.report_str()}')
+                    tree.reset_stat()
                 last_word = a
-            result = attempt3(a, b, s, tree)
+            if not tree.check_and_store(a, b, s):
+                continue
+            result = strict_match(a, b, s)
             if result is not None:
-                write(f'{a} + {b} = {s} {result}')
+                write(f'... {a} + {b} = {s} {result}')
 
 
 run_global_iteration()
