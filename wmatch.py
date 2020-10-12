@@ -1,4 +1,5 @@
 from itertools import islice
+from time import monotonic
 
 from matching import match
 from patterns import patternize_tails_iterative
@@ -9,8 +10,7 @@ class DeadPrefixTree:
 
     def __init__(self):
         self.children = {}  # nested dicts
-        self.call_count = 0
-        self.result_dead_count = 0
+        self.reset_stat()
 
     def check_and_store(self, a, b, s):
         self.call_count += 1
@@ -33,12 +33,25 @@ class DeadPrefixTree:
 
     def match_fn(self, a, b, s):
         # print('match', a, b, s)
+        self.match_call_count += 1
         return match(
             a, b, s, imaginary_one=True, allow_leading_zero=True,
         ) is not None
 
+    def reset_stat(self):
+        self.call_count = 0
+        self.result_dead_count = 0
+        self.match_call_count = 0
+        self.last_time = monotonic()
+
     def report_str(self):
-        return f'calls:{self.call_count} dead:{self.result_dead_count}'
+        dt = monotonic() - self.last_time
+        return (
+            f'calls:{self.call_count}'
+            f' dead:{self.result_dead_count}'
+            f' matchcalls:{self.match_call_count}'
+            f' time:{dt:.1f}s'
+        )
 
 
 # tree = DeadPrefixTree()
@@ -64,7 +77,7 @@ def run_global_iteration():
     from sieve import Words
 
     words = Words.load_full()
-    words.a_filter = lambda w: w > 'азартность' and len(w) >= 10
+    words.a_filter = lambda w: len(w) >= 10
     # words = Words(['деталь', 'изделие', 'удар', 'драка'])
 
     tree = DeadPrefixTree()
@@ -77,8 +90,9 @@ def run_global_iteration():
             f.flush()
 
         for a, b, s in words.iterate_with_sums():
-            if a != last_word:
-                write(f'{a} {tree.report_str()}')
+            if a != last_word and last_word is not None:
+                write(f'{last_word} {tree.report_str()}')
+                tree.reset_stat()
                 last_word = a
             result = attempt3(a, b, s, tree)
             if result is not None:
