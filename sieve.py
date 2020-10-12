@@ -29,54 +29,48 @@ class LetterMaskIndex:
             yield from iter(self._index[wmask])
 
 
-def load_word_database():
-    import gzip
+class Words:
+    def __init__(self, words):
+        self.words = words
+        self.mask_index_by_len = {
+            wlen: LetterMaskIndex(wlist)
+            for wlen, wlist in split_by_length(words).items()
+        }
 
-    result = []
-    with gzip.open('words.txt.gz', 'rt', encoding='utf-8') as f:
-        for line in f:
-            result.append(line.strip())
-    return result
+    @classmethod
+    def load_full(cls):
+        import gzip
 
+        words = []
+        with gzip.open('words.txt.gz', 'rt', encoding='utf-8') as f:
+            for line in f:
+                words.append(line.strip())
+        return cls(words)
 
-def iterate_pairs(words):
-    # 85297031 pairs
-    mask_index_by_len = {
-        wlen: LetterMaskIndex(wlist)
-        for wlen, wlist in split_by_length(words).items()
-    }
+    def a_filter(self, a):
+        return True
 
-    for a in tqdm(words):
-        # if a <= 'азартность':
-        #     continue
-        if len(a) < 10:
-            continue
-        for b in mask_index_by_len[len(a)].search_submatches(a):
-            if a > b:
-                continue
-            yield a, b
+    def pair_filter(self, a, b):
+        return True
 
+    def iterate_pairs(self):
+        # 85297031 pairs
 
-def iterate_with_sums(words, pair_iterator):
-    mask_index_by_len = {
-        wlen: LetterMaskIndex(wlist)
-        for wlen, wlist in split_by_length(words).items()
-    }
+        alist = [w for w in self.words if self.a_filter(w)]
+        for a in tqdm(alist):
+            for b in self.mask_index_by_len[len(a)].search_submatches(a):
+                if a > b:
+                    continue
+                if not self.pair_filter(a, b):
+                    continue
+                yield a, b
 
-    for a, b in pair_iterator:
-        c = 0
-        for s in mask_index_by_len[len(a)].search_submatches(a + b):
-            # print('Attempt to match', a, b, s, end=': ')
-            # success, reason = attempt_to_match(a, b, s)
-            # print(success, reason)
-            # assert len(letterset(a + b + s)) <= 10
-            yield a, b, s
-            c += 1
-        if (len(a) + 1) in mask_index_by_len:
-            for s in mask_index_by_len[len(a) + 1].search_submatches(a + b):
-                # print('Attempt to match', a, b, s, end=': ')
-                # success, reason = attempt_to_match(a, b, s)
-                # print(success, reason)
-                # assert len(letterset(a + b + s)) <= 10
-                c += 1
+    def iterate_with_sums(self):
+        for a, b in self.iterate_pairs():
+            mi = self.mask_index_by_len[len(a)]
+            for s in mi.search_submatches(a + b):
                 yield a, b, s
+            if (len(a) + 1) in self.mask_index_by_len:
+                mi = self.mask_index_by_len[len(a) + 1]
+                for s in mi.search_submatches(a + b):
+                    yield a, b, s

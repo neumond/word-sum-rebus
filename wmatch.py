@@ -1,110 +1,88 @@
-from utils import patternize_tails_iterative
+from itertools import islice
+
+from matching import match
+from patterns import patternize_tails_iterative
 
 
 class DeadPrefixTree:
-    __slots__ = ('children', )
+    max_depth = 10
 
     def __init__(self):
-        self.children = {}
+        self.children = {}  # nested dicts
+        self.call_count = 0
+        self.result_dead_count = 0
 
-    def is_dead_end(self):
-        return self.children is True
-
-    def is_in_tree(self, a, b, s):
-        node = self
-        for triplet in patternize_tails_iterative(a, b, s):
-            if node.is_dead_end():
-                return True
-            if triplet not in node.children:
+    def check_and_store(self, a, b, s):
+        self.call_count += 1
+        current = self.children
+        for tail_len, triplet in enumerate(
+            islice(
+                patternize_tails_iterative(a, b, s, include_leading_one=False),
+                self.max_depth,
+            ),
+            start=1,
+        ):
+            if triplet not in current:
+                m = self.match_fn(a[-tail_len:], b[-tail_len:], s[-tail_len:])
+                current[triplet] = {} if m else False
+            current = current[triplet]
+            if current is False:
+                self.result_dead_count += 1
                 return False
-            node = node.children[triplet]
-        assert False
+        return True
 
-    def add_to_tree(self, tail_pattern):
-        assert len(tail_pattern) % 3 == 0
-        node = self
-        for base in range(0, len(tail_pattern), 3):
-            triplet = tail_pattern[base:base + 3]
-            if triplet not in node.children:
-                node.children[triplet] = DeadPrefixTree()
-            node = node.children[triplet]
-        node.children = True
+    def match_fn(self, a, b, s):
+        # print('match', a, b, s)
+        return match(
+            a, b, s, imaginary_one=True, allow_leading_zero=True,
+        ) is not None
 
-
-
-# print(attempt2('овец', 'ание', 'ание'))
-
-
-# print(list(patternize_tails_iterative('аароновец', 'нашивание', 'нагнивание')))
+    def report_str(self):
+        return f'calls:{self.call_count} dead:{self.result_dead_count}'
 
 
 # tree = DeadPrefixTree()
-# print(tree.is_in_tree('деталь', 'деталь', 'изделие'))
-# tree.add_to_tree(patternize_tails('аль', 'аль', 'лие'))
-# print(tree.is_in_tree('деталь', 'деталь', 'изделие'))
+# print(tree.check_and_store('деталь', 'деталь', 'изделие'))
+# print(tree.check_and_store('деталь', 'деталь', 'изделие'))
+# print(tree.check_and_store('аароновец', 'нашивание', 'нагнивание'))
+# print(tree.check_and_store('аароновец', 'нашивание', 'нагнивание'))
+# print(tree.children)
+# print(tree.report_str())
 
 
-class TreeStat:
-    def __init__(self):
-        self.hit = 0
-        self.miss = 0
-        self.add = 0
-
-    def __str__(self):
-        return f'hit {self.hit}; miss {self.miss}; add {self.add}'
-
-
-def attempt3(a, b, s, tree, tstat):
-    if tree.is_in_tree(a, b, s):
-        tstat.hit += 1
-        return False, ()
-    success, data = attempt2(a, b, s)
-    if success:
-        tstat.miss += 1
-        return True, data
-    elif data is not None:
-        tstat.add += 1
-        tree.add_to_tree(data)
-    else:
-        tstat.miss += 1
-    return False, ()
+def attempt3(a, b, s, tree):
+    if not tree.check_and_store(a, b, s):
+        return None
+    return match(a, b, s, imaginary_one=False, allow_leading_zero=False)
 
 
 def run_global_iteration():
+    from time import time
+
     from tqdm import tqdm
 
-    from equations import iterate_pairs, iterate_with_sums, load_word_database
+    from sieve import Words
 
-    words = load_word_database()
-    # words = ['деталь', 'изделие', 'удар', 'драка']
-    # words.sort()
+    words = Words.load_full()
+    words.a_filter = lambda w: w > 'азартность' and len(w) >= 10
+    # words = Words(['деталь', 'изделие', 'удар', 'драка'])
+
     tree = DeadPrefixTree()
-    tstat = TreeStat()
     last_word = None
 
-    from time import time
     with open(f'find_{int(time())}.log', 'w') as f:
-        for a, b, s in iterate_with_sums(
-            words, iterate_pairs(words),
-        ):
+        def write(s):
+            tqdm.write(s)
+            f.write(s + '\n')
+            f.flush()
+
+        for a, b, s in words.iterate_with_sums():
             if a != last_word:
-                tqdm.write(f'{a} {tstat}')
-                f.write(f'{a} {tstat}\n')
-                f.flush()
+                write(f'{a} {tree.report_str()}')
                 last_word = a
-            success, data = attempt2(a, b, s)
-            # success, data = attempt3(a, b, s, tree, tstat)
-            # print(a, b, s)
-            if success:
-                tqdm.write(f'{a} + {b} = {s} {data}')
-                f.write(f'{a} + {b} = {s} {data}\n')
-                f.flush()
-    tqdm.write(str(tstat))
+            result = attempt3(a, b, s, tree)
+            if result is not None:
+                write(f'{a} + {b} = {s} {result}')
 
 
-# run_global_iteration()
-
-from equations import iterate_pairs, iterate_with_sums, load_word_database
-words = load_word_database()
-print(len(words))
-print(words[:50])
+run_global_iteration()

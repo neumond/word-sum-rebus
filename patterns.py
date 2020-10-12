@@ -59,14 +59,14 @@ def patternize_tails(a, b, s):
     return ''.join(result)
 
 
-def patternize_tails_iterative(a, b, s):
+def patternize_tails_iterative(a, b, s, include_leading_one=True):
     assert len(a) == len(b)
     assert len(a) <= len(s) <= len(a) + 1
 
     def iter_symbols():
         for aa, bb, ss in zip(a[::-1], b[::-1], s[-len(a):][::-1]):
             yield (aa, bb, ss)
-        if len(s) > len(a):
+        if include_leading_one and len(s) > len(a):
             yield (s[0], )
 
     used = {}
@@ -78,3 +78,7 @@ def patternize_tails_iterative(a, b, s):
                 used[m] = next(alloc)
             tr.append(used[m])
         yield ''.join(tr)
+
+
+# print(patternize_tails('удар', 'удар', 'драка'))
+# print(list(patternize_tails_iterative('удар', 'удар', 'драка', False)))

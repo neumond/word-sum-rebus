@@ -290,5 +290,5 @@ def test_match():
             a, b, s = a[1:], b[1:], s[1:]
 
 
-test_match()
+# test_match()
 # print(match('удар', 'удар', 'рака', True, allow_leading_zero=True))
