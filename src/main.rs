@@ -184,6 +184,35 @@ fn attempt(a: &str, b: &str, s: &str) -> Option<(u64, u64)> {
     ))
 }
 
+#[cfg(test)]
+mod tests {
+    use crate::attempt;
+
+    #[test]
+    fn solutions() {
+        assert_eq!(attempt("деталь", "деталь", "изделие"), Some((684259, 684259)));
+        assert_eq!(attempt("удар", "удар", "драка"), Some((8126, 8126)));
+        assert_eq!(attempt("один", "один", "много"), Some((6823, 6823)));
+        assert_eq!(attempt("вагон", "вагон", "состав"), Some((85679, 85679)));
+        assert_eq!(attempt("кис", "кси", "иск"), Some((495, 459)));
+    }
+
+    #[test]
+    fn no_solution() {
+        assert_eq!(attempt("шарик", "мурка", "друзья"), None);
+        assert_eq!(attempt("шар", "мир", "пир"), None);
+    }
+
+    #[test]
+    fn wrong_lengths() {
+        assert_eq!(attempt("саша", "маша", "дружба"), None);
+        assert_eq!(attempt("солнце", "ветер", "погода"), None);
+    }
+
+    // TODO: find multiple solutions
+    // ТИК+ТАК=АКТ;
+}
+
 fn main() {
-    println!("{:?}", attempt("деталь", "деталь", "изделие"));
+    println!("hello");
 }
