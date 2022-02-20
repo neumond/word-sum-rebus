@@ -1,9 +1,7 @@
-const MAX_WORD: usize = 20;
+const MAX_WORD: usize = 20;  // 10 ^ 20 max possible fit in u64
 const ALPHABET: &str = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя";
-const MAX_DIGIT: u8 = 10;
-const MAX_DIGIT_USIZE: usize = MAX_DIGIT as usize;
-const MAX_CHAR: u8 = ALPHABET.len() as u8;
-const MAX_CHAR_USIZE: usize = MAX_CHAR as usize;
+const MAX_DIGIT: usize = 10;
+const MAX_CHAR: usize = ALPHABET.len();
 
 type CharIndex = u8;
 type Digit = u8;
@@ -11,23 +9,23 @@ type Digit = u8;
 const EMPTY: u8 = 255;
 
 struct CharMap {
-    digit_to_char: [CharIndex; MAX_DIGIT_USIZE],
-    char_to_digit: [Digit; MAX_CHAR_USIZE],
-    ref_counts: [u8; MAX_DIGIT_USIZE],
+    digit_to_char: [CharIndex; MAX_DIGIT],
+    char_to_digit: [Digit; MAX_CHAR],
+    ref_counts: [u8; MAX_DIGIT],
 }
 
 impl CharMap {
     fn new() -> Self {
         CharMap {
-            digit_to_char: [EMPTY; MAX_DIGIT_USIZE],
-            char_to_digit: [EMPTY; MAX_CHAR_USIZE],
-            ref_counts: [0; MAX_DIGIT_USIZE],
+            digit_to_char: [EMPTY; MAX_DIGIT],
+            char_to_digit: [EMPTY; MAX_CHAR],
+            ref_counts: [0; MAX_DIGIT],
         }
     }
 
     fn _find_and_set(&mut self, c: CharIndex, frm: u8) -> Option<Digit> {
         let cu = c as usize;
-        for i in frm as usize .. MAX_DIGIT_USIZE {
+        for i in frm as usize .. MAX_DIGIT {
             if self.digit_to_char[i] == EMPTY {
                 self.digit_to_char[i] = c;
                 self.char_to_digit[cu] = i as Digit;
