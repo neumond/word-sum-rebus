@@ -1,26 +1,4 @@
 const MAX_WORD: usize = 20;
-const TENS: [u64; MAX_WORD] = [
-    1,
-    10,
-    100,
-    1_000,
-    10_000,
-    100_000,
-    1_000_000,
-    10_000_000,
-    100_000_000,
-    1_000_000_000,
-    10_000_000_000,
-    100_000_000_000,
-    1_000_000_000_000,
-    10_000_000_000_000,
-    100_000_000_000_000,
-    1_000_000_000_000_000,
-    10_000_000_000_000_000,
-    100_000_000_000_000_000,
-    1_000_000_000_000_000_000,
-    10_000_000_000_000_000_000,
-];
 const ALPHABET: &str = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя";
 const MAX_DIGIT: u8 = 10;
 const MAX_DIGIT_USIZE: usize = MAX_DIGIT as usize;
@@ -52,8 +30,6 @@ impl CharMap {
         for i in frm as usize .. MAX_DIGIT_USIZE {
             if self.digit_to_char[i] == EMPTY {
                 self.digit_to_char[i] = c;
-                assert!(self.char_to_digit[cu] == EMPTY);
-                assert!(self.ref_counts[i] == 0);
                 self.char_to_digit[cu] = i as Digit;
                 self.ref_counts[i] = 1;
                 return Some(i as Digit);
@@ -74,7 +50,6 @@ impl CharMap {
 
     fn switch(&mut self, c: CharIndex) -> Option<Digit> {
         let d = self.char_to_digit[c as usize];
-        assert!(d != EMPTY, "d != EMPTY d={} c={}", d, c);
         if self.remove(d) {
             self._find_and_set(c, d + 1)
         } else {
@@ -159,68 +134,37 @@ fn attempt(a: &str, b: &str, s: &str) -> Option<(u64, u64)> {
     if ssize > asize {
         assert!(cmap.try_assign(ss[ssize - 1], 1));
     }
-    let mut iters = 0;
     loop {
-        iters += 1;
-        eprintln!("====");
-        eprintln!("pos={}", pos);
-        eprintln!("A={:?}", ans);
-        eprintln!("B={:?}", bns);
-        eprintln!("S={:?}", sns);
-        eprintln!("MAP={:?}", cmap.digit_to_char);
-        eprintln!("REF={:?}", cmap.ref_counts);
-        eprint!("CHR:");
-        cmap.char_to_digit.iter().enumerate().filter(|&(c, d)| *d != EMPTY).for_each(|(c, d)| {
-            eprint!(" {}={}", c, d);
-        });
-        eprintln!("");
-        let non_empty_cd = cmap.char_to_digit.iter().filter(|&&d| d != EMPTY).count();
-        let non_empty_refs = cmap.ref_counts.iter().filter(|&&c| c > 0).count();
-        let non_empty_dc = cmap.digit_to_char.iter().filter(|&&c| c != EMPTY).count();
-        eprintln!("{} == {} == {}", non_empty_cd, non_empty_refs, non_empty_dc);
-
         if bns[pos] == EMPTY {
-            assert!(sns[pos] == EMPTY);
-            assert!(carry[pos + 1] == 0);
-            eprintln!("Switch A");
             match cmap.put_or_switch(aa[pos], ans[pos] == EMPTY) {
                 None => {
-                    eprintln!("Switch A: Failed");
                     ans[pos] = EMPTY;
                     if pos == 0 { return None; }
                     pos -= 1;
-                    assert!(sns[pos] != EMPTY);
                     cmap.remove(sns[pos]);
                     sns[pos] = EMPTY;
                     carry[pos + 1] = 0;
                     continue;
                 },
                 Some(an) => {
-                    eprintln!("Switch A: {}", an);
                     ans[pos] = an;
                 },
             }
         }
 
-        eprintln!("Switch B");
         match cmap.put_or_switch(bb[pos], bns[pos] == EMPTY) {
             None => {
-                eprintln!("Switch B: Failed");
                 bns[pos] = EMPTY;
-                assert!(sns[pos] == EMPTY);
                 continue;
             },
             Some(bn) => {
-                eprintln!("Switch B: {}", bn);
                 bns[pos] = bn;
             },
         }
 
-        eprintln!("Attempt S");
         let sn = ans[pos] + bns[pos] + carry[pos];
         let sn10 = sn % 10;
         if cmap.try_assign(ss[pos], sn10) {
-            eprintln!("Attempt S: {} + {} = {} ({})", ans[pos], bns[pos], sn10, sn / 10);
             sns[pos] = sn10;
             carry[pos + 1] = sn / 10;
             pos += 1;
@@ -231,12 +175,8 @@ fn attempt(a: &str, b: &str, s: &str) -> Option<(u64, u64)> {
                 sns[pos] = EMPTY;
                 carry[pos + 1] = 0;
             }
-        } else {
-            eprintln!("Attempt S: Failed");
         }
     }
-
-    eprintln!("Iterations {}", iters);
 
     Some((
         compose_number(&ans[..]),
