@@ -5,7 +5,7 @@ use libflate::gzip::Decoder;
 mod solver;
 use solver::CharIndex;
 
-fn load_dict() -> (Vec<CharIndex>, Vec<usize>) {
+fn load_dict(c: &solver::Converter) -> (Vec<CharIndex>, Vec<usize>) {
     let txt = {
         let f = File::open("words.txt.gz").unwrap();
         let mut decoder = Decoder::new(f).unwrap();
@@ -13,7 +13,6 @@ fn load_dict() -> (Vec<CharIndex>, Vec<usize>) {
         decoder.read_to_string(&mut buf).unwrap();
         buf
     };
-    let c = solver::Converter::new();
     c.to_dict(&txt)
 }
 
@@ -82,7 +81,9 @@ impl IndexedDict {
             abmask: 0,
             b_until: 0, s_start: 0, s_until: 0,
         };
-        r._try_set_a(0);
+        let mx = self.words.len();
+        let a = *self.size_shifts.get(11).unwrap_or(&mx);
+        r._try_set_a(a);
         r
     }
 }
@@ -92,7 +93,7 @@ impl TripletIterator<'_> {
         let total_words = self.idc.words.len();
         if a >= total_words { return false; }
         self.aidx = a;
-        println!("a={}", a);
+        // println!("a={}", a);
         let word_len = self.idc.words[self.aidx].len as usize;
 
         // a + b == b + a
@@ -102,8 +103,8 @@ impl TripletIterator<'_> {
         self.s_start = self.idc.size_shifts[word_len];
 
         // TODO: uncomment
-        // self.b_until = *self.idc.size_shifts.get(word_len + 1).unwrap_or(&total_words);
-        self.b_until = self.aidx + 1;
+        // self.b_until = self.aidx + 1;
+        self.b_until = *self.idc.size_shifts.get(word_len + 1).unwrap_or(&total_words);
 
         self.s_until = *self.idc.size_shifts.get(word_len + 2).unwrap_or(&total_words);
         self.sidx = self.s_start;
@@ -154,11 +155,20 @@ impl<'a> Iterator for TripletIterator<'a> {
 }
 
 fn main() {
-    let (chars, words) = load_dict();
+    let conv = solver::Converter::new();
+    let (chars, words) = load_dict(&conv);
     let idc = IndexedDict::new(chars, words);
-    let c = idc.iter_triplets().count();
-    println!("{}", c);
-    // for (a, b, c) in idc.iter_triplets().take(5) {
-    //     println!("{:?} {:?} {:?}", a, b, c);
-    // }
+    // let c = idc.iter_triplets().count();
+    // println!("{}", c);
+    for (a, b, s) in idc.iter_triplets() {
+        match solver::solve(a, b, s) {
+            None => {},
+            Some((m, k)) => {
+                let st_a = conv.to_string(a);
+                let st_b = conv.to_string(b);
+                let st_s = conv.to_string(s);
+                println!("{}+{}={} {}+{}={}", st_a, st_b, st_s, m, k, m + k);
+            },
+        }
+    }
 }

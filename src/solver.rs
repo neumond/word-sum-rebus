@@ -11,15 +11,26 @@ type Digit = u8;
 
 pub struct Converter {
     char_to_index: HashMap<char, CharIndex>,
+    index_to_char: Vec<char>,
 }
 
 impl Converter {
     pub fn new() -> Self {
         let mut cti = HashMap::with_capacity(MAX_CHAR);
+        let mut itc = Vec::with_capacity(MAX_CHAR);
         for (i, c) in ALPHABET.chars().enumerate() {
             cti.insert(c, i as CharIndex);
+            itc.push(c);
         }
-        Self { char_to_index: cti }
+        Self { char_to_index: cti, index_to_char: itc }
+    }
+
+    pub fn to_string(&self, s: &[CharIndex]) -> String {
+        let mut r = String::new();
+        for &ci in s {
+            r.push(self.index_to_char[ci as usize]);
+        }
+        r
     }
 
     fn to_array(&self, s: &str) -> Vec<CharIndex> {
