@@ -6,7 +6,7 @@ const MAX_CHAR: usize = ALPHABET.len();
 const MAX_DIGIT: usize = 10;
 const EMPTY: u8 = 255;
 
-type CharIndex = u8;
+pub type CharIndex = u8;
 type Digit = u8;
 
 pub struct Converter {
@@ -14,7 +14,7 @@ pub struct Converter {
 }
 
 impl Converter {
-    fn new() -> Self {
+    pub fn new() -> Self {
         let mut cti = HashMap::with_capacity(MAX_CHAR);
         for (i, c) in ALPHABET.chars().enumerate() {
             cti.insert(c, i as CharIndex);
@@ -29,6 +29,51 @@ impl Converter {
             r.push(self.char_to_index[&ch]);
         }
         r
+    }
+
+    pub fn to_dict(&self, txt: &str) -> (Vec<CharIndex>, Vec<usize>) {
+        let (wch_count, word_count) = {
+            let mut wch_count = 0;
+            let mut is_word = false;
+            let mut word_count = 0;
+            for ch in txt.chars() {
+                if self.char_to_index.contains_key(&ch) {
+                    is_word = true;
+                    wch_count += 1;
+                } else {
+                    if is_word {
+                        word_count += 1;
+                        is_word = false;
+                    }
+                }
+            }
+            (wch_count, word_count)
+        };
+
+        let mut chars = Vec::with_capacity(wch_count);
+        let mut words = Vec::with_capacity(word_count);
+
+        if word_count > 0 {
+            // words.push(0);
+            let mut is_word = false;
+            for ch in txt.chars() {
+                match self.char_to_index.get(&ch) {
+                    None => {
+                        is_word = false;
+                    },
+                    Some(&i) => {
+                        if ! is_word {
+                            words.push(chars.len());
+                            is_word = true;
+                        }
+                        chars.push(i);
+                    },
+                }
+            }
+        }
+
+        assert_eq!(word_count, words.len());
+        (chars, words)
     }
 }
 
@@ -230,4 +275,12 @@ mod tests {
 
     // TODO: find multiple solutions
     // ТИК+ТАК=АКТ;
+
+    #[test]
+    fn converter_to_dict() {
+        let c = Converter::new();
+        let (chars, words) = c.to_dict("ааа ббб ввв");
+        assert_eq!(chars, [0, 0, 0, 1, 1, 1, 2, 2, 2]);
+        assert_eq!(words, [0, 3, 6]);
+    }
 }
